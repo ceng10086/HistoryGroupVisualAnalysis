@@ -16,10 +16,16 @@ window.identityView = (() => {
       });
       return;
     }
-    const top = items.slice(0, 12).reverse(); // horizontal bar — biggest at top
+    const top = items.slice(0, 30).reverse(); // horizontal bar — biggest at top
+    // dataZoom inside-chart enables scrolling when bars exceed the visible window
+    const visibleBars = 12;
+    const total = top.length;
+    const startPercent = total > visibleBars
+      ? Math.max(0, ((total - visibleBars) / total) * 100)
+      : 0;
     chart.clear();
     chart.setOption({
-      grid: { left: 110, right: 30, top: 10, bottom: 26, containLabel: false },
+      grid: { left: 110, right: 60, top: 8, bottom: 30, containLabel: false },
       tooltip: {
         trigger: "axis",
         axisPointer: { type: "shadow" },
@@ -28,6 +34,12 @@ window.identityView = (() => {
           return `<b>${d.name}</b><br/>群體中 ${d.value} 人`;
         },
       },
+      dataZoom: total > visibleBars ? [
+        { type: "slider", yAxisIndex: 0, width: 12, right: 10, top: 8, bottom: 30,
+          start: startPercent, end: 100, showDetail: false,
+          backgroundColor: "rgba(184,138,68,0.10)" },
+        { type: "inside", yAxisIndex: 0, start: startPercent, end: 100 },
+      ] : [],
       xAxis: {
         type: "value",
         axisLine: { lineStyle: { color: "#b88a44" } },

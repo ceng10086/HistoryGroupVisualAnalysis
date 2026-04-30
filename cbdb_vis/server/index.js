@@ -46,8 +46,8 @@ app.get("/api/person/:id", (req, res) => {
 app.get("/api/network", (req, res) => {
   const seedIds = parseIntList(req.query.seeds || req.query.id);
   const depth = Math.max(1, Math.min(Number(req.query.depth) || 1, 2));
-  const maxNodes = Math.min(Number(req.query.maxNodes) || 200, 400);
-  const maxNeighborsPerNode = Math.min(Number(req.query.maxPerNode) || 60, 120);
+  const maxNodes = Math.min(Number(req.query.maxNodes) || 200, 1500);
+  const maxNeighborsPerNode = Math.min(Number(req.query.maxPerNode) || 80, 300);
   if (seedIds.length === 0) return res.status(400).json({ error: "seeds required" });
   const net = network.buildNetwork({ seedIds, depth, maxNodes, maxNeighborsPerNode });
   const ids = net.nodes.map((n) => n.id);

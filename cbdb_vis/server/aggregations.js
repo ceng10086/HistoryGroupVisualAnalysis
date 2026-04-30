@@ -19,7 +19,7 @@ function getIdentityDistribution(personIds) {
       WHERE s.c_personid IN (${placeholders})
       GROUP BY s.c_status_code
       ORDER BY cnt DESC
-      LIMIT 50
+      LIMIT 80
     `
     )
     .all(...personIds);

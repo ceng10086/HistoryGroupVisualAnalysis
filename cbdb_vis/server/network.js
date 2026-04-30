@@ -8,7 +8,7 @@ const queries = require("./queries");
 // `depth=1` returns seeds + their direct neighbors;
 // `depth=2` adds one more hop (used cautiously since CBDB neighborhoods can explode).
 
-function buildNetwork({ seedIds, depth = 1, maxNeighborsPerNode = 60, maxNodes = 200 }) {
+function buildNetwork({ seedIds, depth = 1, maxNeighborsPerNode = 80, maxNodes = 200 }) {
   const seeds = Array.isArray(seedIds) ? seedIds.filter(Boolean) : [];
   if (seeds.length === 0) return { nodes: [], edges: [], truncated: false };
 

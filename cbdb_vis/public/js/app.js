@@ -17,6 +17,8 @@
     presetSelect: document.getElementById("preset-select"),
     depthSelect: document.getElementById("depth-select"),
     capSelect: document.getElementById("cap-select"),
+    labelDensity: document.getElementById("label-density"),
+    netSearch: document.getElementById("net-search"),
     netStatus: document.getElementById("network-status"),
     timelineHint: document.getElementById("timeline-hint"),
   };
@@ -214,6 +216,17 @@
   // --- buttons ---
   els.btnRender.addEventListener("click", render);
   els.btnFit.addEventListener("click", () => networkView.fit());
+  els.labelDensity.addEventListener("change", () =>
+    networkView.setLabelMode(els.labelDensity.value));
+
+  let netSearchTimer = null;
+  els.netSearch.addEventListener("input", () => {
+    clearTimeout(netSearchTimer);
+    netSearchTimer = setTimeout(
+      () => networkView.setSearch(els.netSearch.value),
+      120
+    );
+  });
 
   // --- boot ---
   function boot() {

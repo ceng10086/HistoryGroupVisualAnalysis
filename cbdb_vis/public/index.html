@@ -40,8 +40,18 @@
         <label class="depth-label">節點上限：
           <select id="cap-select">
             <option value="80">80</option>
-            <option value="120" selected>120</option>
-            <option value="200">200</option>
+            <option value="150" selected>150</option>
+            <option value="300">300</option>
+            <option value="500">500</option>
+            <option value="800">800</option>
+            <option value="1200">1200</option>
+          </select>
+        </label>
+        <label class="depth-label">節點標籤：
+          <select id="label-density">
+            <option value="auto" selected>自動（隨節點數調整）</option>
+            <option value="all">全部</option>
+            <option value="seeds">僅中心人物</option>
           </select>
         </label>
         <button id="btn-render" class="btn btn-primary">繪製網絡</button>
@@ -60,6 +70,7 @@
           <span><i class="line line-kin"></i>親屬關係</span>
         </div>
         <div class="panel-actions">
+          <input id="net-search" type="text" class="net-search" placeholder="圖內搜索…" />
           <button id="btn-fit" class="btn btn-ghost btn-sm" title="重置視圖">⤺ 重置</button>
         </div>
       </div>

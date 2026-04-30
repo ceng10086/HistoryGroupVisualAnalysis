@@ -6,6 +6,8 @@ window.networkView = (() => {
   let tooltip;
   let onNodeSelect = () => {};
   let lastNodes = [], lastEdges = [];
+  let labelMode = "auto"; // 'auto' | 'all' | 'seeds'
+  let searchTerm = "";
 
   // Color palette based on identity (most common identities get stable colors).
   const IDENTITY_COLORS = {
@@ -44,7 +46,7 @@ window.networkView = (() => {
     gLabel = gAll.append("g").attr("class", "g-labels");
 
     zoomBehavior = d3.zoom()
-      .scaleExtent([0.2, 5])
+      .scaleExtent([0.15, 6])
       .on("zoom", (ev) => gAll.attr("transform", ev.transform));
     svgRoot.call(zoomBehavior);
 
@@ -65,12 +67,77 @@ window.networkView = (() => {
     });
   }
 
+  // Decide which nodes get a label, given the current mode and graph size.
+  function labelFilter(nodes) {
+    if (labelMode === "all") return nodes;
+    if (labelMode === "seeds") return nodes.filter((n) => n.isSeed);
+    // auto: scale label density with node count
+    const n = nodes.length;
+    if (n <= 60) return nodes.filter((d) => d.isSeed || d.degree >= 2);
+    if (n <= 150) return nodes.filter((d) => d.isSeed || d.degree >= 4);
+    if (n <= 350) return nodes.filter((d) => d.isSeed || d.degree >= 7);
+    return nodes.filter((d) => d.isSeed || d.degree >= 12);
+  }
+
+  function relayoutLabels() {
+    const labelData = labelFilter(lastNodes);
+    const sel = gLabel.selectAll("text.node-label").data(labelData, (d) => d.id);
+    sel.exit().remove();
+    const enter = sel.enter().append("text")
+      .attr("class", "node-label")
+      .attr("dy", "0.32em");
+    enter.merge(sel)
+      .text((d) => d.name_chn || `#${d.id}`)
+      .attr("font-size", (d) => d.isSeed ? 14 : 11)
+      .attr("font-weight", (d) => d.isSeed ? 700 : 500)
+      .attr("x", (d) => d.x ?? 0)
+      .attr("y", (d) => (d.y ?? 0) - (d.r || 6) - 4);
+  }
+
+  function setLabelMode(mode) {
+    labelMode = mode || "auto";
+    relayoutLabels();
+  }
+
+  function setSearch(term) {
+    searchTerm = (term || "").trim();
+    if (!searchTerm) { unhighlight(); return; }
+    const re = searchTerm.toLowerCase();
+    const matchSet = new Set(
+      lastNodes
+        .filter((n) => (n.name_chn || "").toLowerCase().includes(re)
+          || (n.name_py || "").toLowerCase().includes(re))
+        .map((n) => n.id)
+    );
+    if (matchSet.size === 0) {
+      gNode.selectAll("circle.node-circle").classed("dim", true);
+      gLabel.selectAll("text.node-label").classed("dim", true);
+      gLink.selectAll("line.link-line").classed("dim", true);
+      return;
+    }
+    // Include 1-hop neighbors of matches in the keep-set
+    const keep = new Set(matchSet);
+    lastEdges.forEach((e) => {
+      const s = e.source.id ?? e.source;
+      const t = e.target.id ?? e.target;
+      if (matchSet.has(s)) keep.add(t);
+      if (matchSet.has(t)) keep.add(s);
+    });
+    gNode.selectAll("circle.node-circle")
+      .classed("dim", (d) => !keep.has(d.id))
+      .classed("match", (d) => matchSet.has(d.id));
+    gLabel.selectAll("text.node-label").classed("dim", (d) => !keep.has(d.id));
+    gLink.selectAll("line.link-line").classed("dim", (d) => {
+      const s = d.source.id ?? d.source;
+      const t = d.target.id ?? d.target;
+      return !(keep.has(s) && keep.has(t));
+    });
+  }
+
   function setData(nodes, edges) {
     lastNodes = nodes; lastEdges = edges;
     if (simulation) simulation.stop();
 
-    // Decorate nodes
-    const seedSet = new Set(nodes.filter((n) => n.isSeed).map((n) => n.id));
     nodes.forEach((n) => {
       n.color = n.isSeed
         ? "#d4a017"
@@ -78,7 +145,6 @@ window.networkView = (() => {
       n.r = n.isSeed ? 14 : 7;
     });
 
-    // Compute degree per node
     const degree = new Map();
     edges.forEach((e) => {
       degree.set(e.source, (degree.get(e.source) || 0) + 1);
@@ -86,7 +152,10 @@ window.networkView = (() => {
     });
     nodes.forEach((n) => {
       n.degree = degree.get(n.id) || 0;
-      if (!n.isSeed) n.r = 5 + Math.min(8, Math.sqrt(n.degree) * 1.6);
+      if (!n.isSeed) {
+        const base = nodes.length > 300 ? 4 : 5;
+        n.r = base + Math.min(8, Math.sqrt(n.degree) * 1.6);
+      }
     });
 
     // Bind links
@@ -113,7 +182,7 @@ window.networkView = (() => {
       .on("mousemove", moveTooltip)
       .on("mouseout", function () {
         tooltip.style("display", "none");
-        unhighlight();
+        if (!searchTerm) unhighlight();
       })
       .on("click", function (ev, d) {
         ev.stopPropagation();
@@ -134,8 +203,8 @@ window.networkView = (() => {
       .attr("fill", (d) => d.color)
       .attr("class", (d) => "node-circle" + (d.isSeed ? " seed" : ""));
 
-    // Bind labels (only seed and high-degree)
-    const labelData = nodes.filter((n) => n.isSeed || n.degree >= 3);
+    // Bind labels (filtered by labelMode + auto density rule)
+    const labelData = labelFilter(nodes);
     const labelSel = gLabel.selectAll("text.node-label")
       .data(labelData, (d) => d.id);
     labelSel.exit().remove();
@@ -147,17 +216,23 @@ window.networkView = (() => {
       .attr("font-size", (d) => d.isSeed ? 14 : 11)
       .attr("font-weight", (d) => d.isSeed ? 700 : 500);
 
-    // Click on empty space -> unhighlight
-    svgRoot.on("click", () => unhighlight());
+    svgRoot.on("click", () => { if (!searchTerm) unhighlight(); });
 
-    // Force simulation
+    // Force simulation — params scale with node count for clarity at large graphs.
+    const N = nodes.length;
+    const charge = N > 500 ? -55 : N > 250 ? -90 : -120;
+    const linkDist = (d) => {
+      const base = d.kind === "kin" ? 50 : 75;
+      return base + Math.min(40, N / 18);
+    };
+    const collideR = (d) => d.r + (N > 300 ? 3 : 6);
     simulation = d3.forceSimulation(nodes)
-      .force("link", d3.forceLink(edges).id((d) => d.id).distance((d) => d.kind === "kin" ? 60 : 90).strength(0.5))
-      .force("charge", d3.forceManyBody().strength((d) => d.isSeed ? -380 : -120))
+      .force("link", d3.forceLink(edges).id((d) => d.id).distance(linkDist).strength(0.5))
+      .force("charge", d3.forceManyBody().strength((d) => d.isSeed ? -380 : charge))
       .force("center", d3.forceCenter(width / 2, height / 2))
-      .force("collide", d3.forceCollide().radius((d) => d.r + 6))
+      .force("collide", d3.forceCollide().radius(collideR))
       .alpha(1)
-      .alphaDecay(0.025)
+      .alphaDecay(N > 400 ? 0.04 : 0.025)
       .on("tick", () => {
         linkAll
           .attr("x1", (d) => d.source.x)
@@ -172,7 +247,7 @@ window.networkView = (() => {
           .attr("y", (d) => d.y - d.r - 4);
       });
 
-    setTimeout(fit, 1200);
+    setTimeout(fit, N > 400 ? 1800 : 1200);
   }
 
   function highlight(node) {
@@ -195,7 +270,7 @@ window.networkView = (() => {
       });
   }
   function unhighlight() {
-    gNode.selectAll("circle.node-circle").classed("dim", false);
+    gNode.selectAll("circle.node-circle").classed("dim", false).classed("match", false);
     gLabel.selectAll("text.node-label").classed("dim", false);
     gLink.selectAll("line.link-line").classed("dim", false);
   }
@@ -242,6 +317,8 @@ window.networkView = (() => {
     init,
     setData,
     fit,
+    setLabelMode,
+    setSearch,
     onSelect: (fn) => { onNodeSelect = fn; },
   };
 })();

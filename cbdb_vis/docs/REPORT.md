@@ -49,8 +49,11 @@ CBDB 在 SQLite 中以高度規範化形式存儲：
 
 ### 2.3 設計關鍵
 1. **群體即種子**：用戶可通過搜索 + 添加多個「中心人物」作為種子，後端進行 1–2 跳鄰居擴展，形成群體網絡。
-2. **截斷與分頁**：CBDB 中熱門人物關係呈長尾分布（如蘇軾 1 跳鄰居 > 1000），系統採用 `maxNodes=80/120/200` 與 `maxNeighborsPerNode=60` 雙重上限，並在 UI 提示截斷狀態。
-3. **多視圖聯動**：群體切換 → 同時驅動社會網絡、身份分布、地理分布；個人切換 → 同時驅動詳情面板與年表。
+2. **節點上限可調**：CBDB 中熱門人物關係呈長尾分布（如蘇軾 1 跳鄰居 > 1000），系統提供 80 / 150 / 300 / 500 / 800 / 1200 共 6 檔上限，後端硬上限 1500、`maxNeighborsPerNode` 上限 300，並在 UI 提示截斷狀態。
+3. **大圖優化策略**：力導向 (`d3.forceSimulation`) 的 `charge`、`linkDistance`、`collideRadius`、`alphaDecay` 參數按節點數動態縮放（>500 節點時 charge 從 -120 降至 -55，alphaDecay 從 0.025 升至 0.04），同時將節點半徑基準從 5 降至 4，保證 500+ 節點時仍能在 1.8 秒內收斂。
+4. **多檔標籤密度**：給定節點數 N，「自動」模式按 N≤60／≤150／≤350／更多 四檔分別顯示 degree≥2／4／7／12 的標籤，避免大圖文字相互壓蓋；用戶亦可一鍵切換「全部」「僅中心人物」兩種顯式模式。
+5. **詳情面板可展開**：人物詳情中的地址 / 仕宦 / 交往 / 親屬四類列表預設只渲染前 8 / 10 / 12 / 12 條，再以 `<li class="expand-toggle">` 提供「展開全部 (還有 N 條)」按鈕一鍵打開所有條目，避免一次性渲染 1000+ DOM 節點導致卡頓。
+6. **多視圖聯動**：群體切換 → 同時驅動社會網絡、身份分布、地理分布；個人切換 → 同時驅動詳情面板與年表。
 
 ---
 
@@ -115,14 +118,19 @@ app.js (orchestration)
 ### 3.4 性能與優化
 * SQL 預編譯（once-prepared）+ `cache_size=-64000`：常用查詢 < 5ms。
 * 前端 `api.memoFetch`：對人物詳情、預設、時間軸結果 60 秒緩存。
-* D3 力導向：`alphaDecay=0.025`，~1.2 秒收斂；`forceCollide` 防重疊；缩放/拖拽用 D3-zoom。
+* D3 力導向**節點數自適應**：≤250 節點 charge=-120 / collideR=node.r+6 / alphaDecay=0.025；>500 節點 charge=-55 / collideR=node.r+3 / alphaDecay=0.04。500 節點圖在 ~1.8s 內收斂。
+* 標籤渲染分檔過濾：避免大圖中 N 個 `<text>` 節點相互重疊。
+* 詳情列表懶展開：CSS `[data-collapsed="1"]{display:none}` 配合一次性 DOM 渲染、JS 移除屬性即可瞬時展開所有條目，無需重新 fetch。
 * 響應式佈局：CSS Grid `grid-template-areas` + `@media (max-width:1180px)` 自動切單列。
 
 ---
 
 ## 4. 系統運行截圖
 
-詳見 `cbdb_vis/cbdb-after-preset.png`（吳門四家）與 `cbdb_vis/cbdb-tangsong-sushi.png`（唐宋八大家 / 蘇軾被選中）。
+詳見 `cbdb_vis/docs/`：
+- `cbdb-after-preset.png` — 明代吳門四家（默認 150 節點上限）
+- `cbdb-tangsong-sushi.png` — 唐宋八大家 / 蘇軾被選中（150 節點上限）
+- `cbdb-large-graph.png` — 唐宋八大家放大為 500 節點上限（267 人物 / 315 關係）
 
 關鍵展示要點：
 1. 上方搜索條 + 中心人物 chip + 預設群體下拉 + 關係層級 / 節點上限參數；
