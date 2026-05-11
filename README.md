@@ -11,6 +11,8 @@
 
 ![節點上限 500 的大圖視圖](cbdb_vis/docs/cbdb-large-graph.png)
 
+![蘇軾生命帶年表](cbdb_vis/docs/cbdb-timeline-ribbon.png)
+
 ---
 
 ## 目錄結構
@@ -28,7 +30,8 @@ HistoryGroupVisualAnalysis/
     │   ├── REPORT.md                      ← 結題報告草案
     │   ├── cbdb-after-preset.png          ← 吳門四家截圖
     │   ├── cbdb-tangsong-sushi.png        ← 唐宋八大家截圖
-    │   └── cbdb-large-graph.png           ← 500 節點上限大圖截圖
+    │   ├── cbdb-large-graph.png           ← 500 節點上限大圖截圖
+    │   └── cbdb-timeline-ribbon.png       ← 蘇軾「生命帶」年表截圖
     ├── server/                            ← Express + better-sqlite3 後端
     │   ├── index.js
     │   ├── db.js
@@ -83,7 +86,7 @@ PORT=8080 npm start          # 自定義端口
 | 動態社會網絡 | `ASSOC_DATA` + `KIN_DATA` | D3.js 力導向圖；節點上限 80–1200，標籤密度可調，圖內搜索 |
 | 人物身份分布 | `STATUS_DATA` + `STATUS_CODES` | ECharts 條形圖（Top 30，可滾動） |
 | 人物地理分布 | `BIOG_MAIN.c_index_addr_id` + `ADDR_CODES.x/y_coord` | Leaflet + OSM |
-| 人物年表故事 | `EVENTS_DATA` + `POSTED_TO_OFFICE_DATA` + `ENTRY_DATA` | ECharts 散點時間軸 |
+| 人物年表故事 | `EVENTS_DATA` + `POSTED_TO_OFFICE_DATA` + `ENTRY_DATA` | 自繪 SVG「畫卷式」生命帶（頭像 + 生卒長帶 + 入仕/任職/事件標誌） |
 | 人物詳情 | 9 張表彙總 | 原生 DOM；長列表「展開全部」一鍵看完 1000+ 條 |
 
 更多細節（API 列表、創新點、性能優化）請見 [`cbdb_vis/README.md`](cbdb_vis/README.md) 與 [`cbdb_vis/docs/REPORT.md`](cbdb_vis/docs/REPORT.md)。

@@ -61,7 +61,7 @@ PORT=8080 npm start        # 也可指定端口
 | 動態社會網絡 | `ASSOC_DATA` + `KIN_DATA` | D3.js 力導向圖；可拖拽 / 縮放 / 聚焦鄰居；節點上限可選 80–1200，標籤密度（自動 / 全部 / 僅中心）可調，內置「圖內搜索」高亮 |
 | 人物身份分布 | `STATUS_DATA` + `STATUS_CODES` | ECharts 水平條形圖；返回 Top 30 身份，顯示窗口 12 條，垂直滾動瀏覽其餘 |
 | 人物地理分布 | `BIOG_MAIN.c_index_addr_id` + `ADDR_CODES.x/y_coord` | Leaflet + OpenStreetMap，按籍貫聚合 |
-| 人物年表故事 | `EVENTS_DATA` + `POSTED_TO_OFFICE_DATA` + `ENTRY_DATA` | ECharts 散點時間軸（5 軌：出生 / 入仕 / 任職 / 事件 / 卒） |
+| 人物年表故事 | `EVENTS_DATA` + `POSTED_TO_OFFICE_DATA` + `ENTRY_DATA` | 自繪 SVG 「畫卷式」生命帶（life-ribbon）：左側頭像+姓名+生卒；中央米黃色長帶為生命周期，金色點標記出生、深色豎條標記卒；帶上鋪入仕（藍菱形）、任職（綠色 tick）、事件（紅圓點）三類標誌；下方為十年刻度 |
 | 人物詳情 | `BIOG_MAIN` 等 9 張表彙總 | 原生 DOM；地址 / 仕宦 / 交往 / 親屬列表預設摺疊（8 / 10 / 12 / 12 條），點「展開全部」可看完所有條目（蘇軾的社會交往可達 1000+ 條） |
 
 ## API 列表
@@ -94,6 +94,7 @@ PORT=8080 npm start        # 也可指定端口
 - `docs/cbdb-after-preset.png` — 明代吳門四家視圖
 - `docs/cbdb-tangsong-sushi.png` — 唐宋八大家視圖（蘇軾被選中）
 - `docs/cbdb-large-graph.png` — 唐宋八大家在 500 節點上限下的大圖視圖（267 人物 / 315 關係）
+- `docs/cbdb-timeline-ribbon.png` — 蘇軾「生命帶」年表（1036–1101，36 任職 + 2 入仕）
 
 ## 數據限制
 

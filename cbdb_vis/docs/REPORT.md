@@ -109,7 +109,7 @@ app.js (orchestration)
  ├─► networkView   (D3 force layout)
  ├─► identityView  (ECharts bar)
  ├─► geoView       (Leaflet circleMarker)
- ├─► timelineView  (ECharts scatter on type-axis)
+ ├─► timelineView  (custom SVG "life-ribbon")
  └─► detailView    (DOM render of 9-table summary)
 ```
 
@@ -131,6 +131,7 @@ app.js (orchestration)
 - `cbdb-after-preset.png` — 明代吳門四家（默認 150 節點上限）
 - `cbdb-tangsong-sushi.png` — 唐宋八大家 / 蘇軾被選中（150 節點上限）
 - `cbdb-large-graph.png` — 唐宋八大家放大為 500 節點上限（267 人物 / 315 關係）
+- `cbdb-timeline-ribbon.png` — 蘇軾「生命帶」年表（左側頭像 + 中央米黃帶 + 入仕/任職/事件三類標誌）
 
 關鍵展示要點：
 1. 上方搜索條 + 中心人物 chip + 預設群體下拉 + 關係層級 / 節點上限參數；
@@ -138,7 +139,7 @@ app.js (orchestration)
 3. 右側人物詳情面板，含字號、社會身份、地址、仕宦履歷、社會交往、親屬關係；
 4. 下方左塊「人物身份分布」橫向條形圖（畫家 33 / 為官者:文 31 / 詩人 17 …）；
 5. 下方中塊 OpenStreetMap 籍貫聚類，圓點面積與群體聚集度成 √n 正比；
-6. 下方右塊「人物年表」散點時間軸（出生 / 入仕 / 任職 / 事件 / 卒 五軌）。
+6. 下方右塊「人物年表」採用**畫卷式生命帶（life-ribbon）**：左側為人物頭像（取姓首字）+ 姓名 + 生卒；中央米黃色長帶為生卒年區間（圓角），金色實心點落於帶首作為出生標誌、深色豎條收尾作為「卒」標誌；帶上以三類標誌散落事件——入仕（藍色菱形）、任職（綠色 tick）、事件（紅色圓點），同年事件以「上下交錯+連接細線」自動分層避免重疊；下方為十年刻度。當前頁面默認展示**蘇軾的 36 任職 + 2 入仕** 一整條繪卷，鼠標懸停任一標誌可彈出詳細年份與內容。
 
 ---
 
