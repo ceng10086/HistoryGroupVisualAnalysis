@@ -1,7 +1,7 @@
 "use strict";
 
 const db = require("./db");
-const queries = require("./queries");
+const norm = require("./normalize");
 
 // Identity (社會身份) distribution across a group.
 function getIdentityDistribution(personIds) {
@@ -17,13 +17,16 @@ function getIdentityDistribution(personIds) {
       FROM STATUS_DATA s
       LEFT JOIN STATUS_CODES sc ON sc.c_status_code = s.c_status_code
       WHERE s.c_personid IN (${placeholders})
+        AND s.c_status_code != 0
       GROUP BY s.c_status_code
       ORDER BY cnt DESC
       LIMIT 80
     `
     )
     .all(...personIds);
-  return rows.filter((r) => r.desc_chn);
+  return rows
+    .map((r) => ({ ...r, desc_chn: norm.knownText(r.desc_chn), desc_py: norm.knownText(r.desc_py) }))
+    .filter((r) => r.desc_chn);
 }
 
 // Per-person identities (top one per person, used for node coloring).
@@ -39,6 +42,7 @@ function getPrimaryIdentities(personIds) {
       FROM STATUS_DATA s
       LEFT JOIN STATUS_CODES sc ON sc.c_status_code = s.c_status_code
       WHERE s.c_personid IN (${placeholders})
+        AND s.c_status_code != 0
         AND sc.c_status_desc_chn IS NOT NULL
       ORDER BY s.c_personid, s.c_sequence
     `
@@ -46,7 +50,8 @@ function getPrimaryIdentities(personIds) {
     .all(...personIds);
   const map = {};
   for (const r of rows) {
-    if (!map[r.pid]) map[r.pid] = r.desc_chn;
+    const desc = norm.knownText(r.desc_chn);
+    if (desc && !map[r.pid]) map[r.pid] = desc;
   }
   return map;
 }
@@ -68,12 +73,25 @@ function getGeoDistribution(personIds) {
       FROM BIOG_MAIN bm
       LEFT JOIN ADDR_CODES a ON a.c_addr_id = bm.c_index_addr_id
       WHERE bm.c_personid IN (${placeholders})
+        AND bm.c_index_addr_id != 0
         AND a.x_coord IS NOT NULL
         AND a.y_coord IS NOT NULL
     `
     )
     .all(...personIds);
-  return rows;
+  return rows
+    .map((r) => {
+      const coords = norm.coordinatePair(r.x, r.y);
+      return {
+        ...r,
+        index_year: norm.year(r.index_year),
+        addr_id: norm.knownId(r.addr_id),
+        addr_chn: norm.knownText(r.addr_chn),
+        x: coords.x,
+        y: coords.y,
+      };
+    })
+    .filter((r) => r.addr_id && r.addr_chn && r.x != null && r.y != null);
 }
 
 // Aggregated geographic clusters.

@@ -1,6 +1,7 @@
 "use strict";
 
 const db = require("./db");
+const norm = require("./normalize");
 
 const personSummaryStmt = db.prepare(`
   SELECT
@@ -16,7 +17,8 @@ const personSummaryStmt = db.prepare(`
     bm.c_index_addr_id                    AS index_addr_id,
     addr.c_name_chn                       AS index_addr_chn,
     addr.x_coord                          AS index_addr_x,
-    addr.y_coord                          AS index_addr_y
+    addr.y_coord                          AS index_addr_y,
+    bm.c_notes                            AS notes
   FROM BIOG_MAIN bm
   LEFT JOIN DYNASTIES d ON d.c_dy = bm.c_dy
   LEFT JOIN ADDR_CODES addr ON addr.c_addr_id = bm.c_index_addr_id
@@ -24,7 +26,7 @@ const personSummaryStmt = db.prepare(`
 `);
 
 function getPersonSummary(personId) {
-  return personSummaryStmt.get(personId) || null;
+  return norm.normalizePersonSummary(personSummaryStmt.get(personId));
 }
 
 const altNamesStmt = db.prepare(`
@@ -155,21 +157,53 @@ function getPersonDetail(personId) {
   if (!summary) return null;
   return {
     ...summary,
-    alt_names: altNamesStmt.all(personId),
-    statuses: statusesStmt.all(personId),
-    addresses: addressesStmt.all(personId),
-    entries: entriesStmt.all(personId),
-    offices: officesStmt.all(personId),
-    events: eventsStmt.all(personId),
-    associations: associationsStmt.all(personId),
-    kinships: kinshipsStmt.all(personId),
+    alt_names: getAltNames(personId),
+    statuses: getStatuses(personId),
+    addresses: getAddresses(personId),
+    entries: getEntries(personId),
+    offices: getOffices(personId),
+    events: getEvents(personId),
+    associations: getAssociations(personId),
+    kinships: getKinships(personId),
   };
+}
+
+function getAltNames(personId) {
+  return norm.cleanList(altNamesStmt.all(personId), norm.normalizeAltName);
+}
+
+function getStatuses(personId) {
+  return norm.cleanList(statusesStmt.all(personId), norm.normalizeStatus);
+}
+
+function getAddresses(personId) {
+  return norm.cleanList(addressesStmt.all(personId), norm.normalizeAddress);
+}
+
+function getEntries(personId) {
+  return norm.cleanList(entriesStmt.all(personId), norm.normalizeEntry);
+}
+
+function getOffices(personId) {
+  return norm.cleanList(officesStmt.all(personId), norm.normalizeOffice);
+}
+
+function getEvents(personId) {
+  return norm.cleanList(eventsStmt.all(personId), norm.normalizeEvent);
+}
+
+function getAssociations(personId) {
+  return norm.cleanList(associationsStmt.all(personId), norm.normalizeAssociation);
+}
+
+function getKinships(personId) {
+  return norm.cleanList(kinshipsStmt.all(personId), norm.normalizeKinship);
 }
 
 function getNeighbors(personId) {
   return {
-    associations: associationsStmt.all(personId),
-    kinships: kinshipsStmt.all(personId),
+    associations: getAssociations(personId),
+    kinships: getKinships(personId),
   };
 }
 
@@ -177,6 +211,14 @@ module.exports = {
   getPersonSummary,
   getPersonDetail,
   getNeighbors,
+  getAltNames,
+  getStatuses,
+  getAddresses,
+  getEntries,
+  getOffices,
+  getEvents,
+  getAssociations,
+  getKinships,
   altNamesStmt,
   statusesStmt,
   addressesStmt,

@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const OpenAI = require("openai");
+const norm = require("./normalize");
 
 const DEFAULT_BASE_URL = "https://api.deepseek.com";
 const DEFAULT_MODEL = "deepseek-v4-pro";
@@ -118,6 +119,7 @@ function compactPersonForPrompt(person) {
     dynasty_chn: person.dynasty_chn || null,
     index_year: person.index_year ?? null,
     index_addr_chn: person.index_addr_chn || null,
+    notes: person.notes ? String(person.notes).slice(0, 800) : null,
     alt_names: pickList(person.alt_names, ["type_chn", "name_chn"], 12),
     statuses: pickList(person.statuses, ["desc_chn", "first_year", "last_year"], 12),
     addresses: pickList(person.addresses, ["type_chn", "name_chn", "first_year", "last_year"], 8),
@@ -173,15 +175,11 @@ function parseJsonContent(content) {
 }
 
 function textOrNull(value) {
-  if (value == null) return null;
-  const s = String(value).trim();
-  return s ? s : null;
+  return norm.knownText(value);
 }
 
 function intOrNull(value) {
-  if (value == null || value === "") return null;
-  const n = Number(value);
-  return Number.isInteger(n) ? n : null;
+  return norm.year(value);
 }
 
 function confidence(value) {
@@ -366,10 +364,7 @@ EXAMPLE JSON OUTPUT:
 }`;
 }
 
-async function requestJson(messages, cacheKey) {
-  const cached = getCached(cacheKey);
-  if (cached) return cached;
-
+async function requestJson(messages) {
   const cfg = getConfig();
   const response = await getClient().chat.completions.create({
     model: cfg.model,
@@ -383,13 +378,15 @@ async function requestJson(messages, cacheKey) {
   const content = response.choices && response.choices[0] && response.choices[0].message
     ? response.choices[0].message.content
     : "";
-  return setCached(cacheKey, parseJsonContent(content));
+  return parseJsonContent(content);
 }
 
 async function supplementPerson(person, missingFields) {
   const missing = missingFields && missingFields.length ? missingFields : getMissingFields(person);
   const promptPerson = compactPersonForPrompt(person);
   const cacheKey = `supplement:${getConfig().model}:${person.id}:${missing.join(",")}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
 
   const raw = await requestJson([
     { role: "system", content: systemPrompt() },
@@ -403,14 +400,21 @@ ${JSON.stringify(missing, null, 2)}
 CBDB_PERSON JSON:
 ${JSON.stringify(promptPerson, null, 2)}`,
     },
-  ], cacheKey);
+  ]);
 
-  return {
+  const normalized = {
     ...normalizeSupplement(raw),
     based_on_cbdb_id: person.id,
     name_chn: person.name_chn || null,
     missing_fields: missing,
   };
+  const hasContent = norm.hasSupplementContent(normalized);
+  if (!hasContent) {
+    normalized.warnings = ["DeepSeek 未能可靠補充缺失欄位。"];
+    normalized.note = "AI 未返回可用補充內容，建議查核其他史料。";
+  }
+  if (hasContent) setCached(cacheKey, normalized);
+  return normalized;
 }
 
 async function lookupPerson(query) {
@@ -421,6 +425,8 @@ async function lookupPerson(query) {
     throw err;
   }
   const cacheKey = `lookup:${getConfig().model}:${q}`;
+  const cached = getCached(cacheKey);
+  if (cached) return cached;
   const raw = await requestJson([
     { role: "system", content: systemPrompt() },
     {
@@ -455,9 +461,9 @@ async function lookupPerson(query) {
   }
 }`,
     },
-  ], cacheKey);
+  ]);
 
-  return normalizeVirtualPerson(raw, q);
+  return setCached(cacheKey, normalizeVirtualPerson(raw, q));
 }
 
 module.exports = {

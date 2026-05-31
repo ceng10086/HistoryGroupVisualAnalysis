@@ -107,6 +107,12 @@ npm start
 
 ---
 
+## CBDB 數據注意事項
+
+本系統在後端統一正規化 CBDB 的缺失值：年份欄位中的 `0` 視為未知，`ASSOC_DATA.c_assoc_first_year` 中的 `-1/-9999`、少量 `POSTED_TO_OFFICE_DATA.c_firstyear` 中的 `-1/-2` 也視為未定年；真實公元前年份仍保留。多個碼表的 `0` 代表「未詳／Unknown」（如朝代、地址、身份、入仕、仕宦、事件、社會關係、親屬關係等），不作為有效資料計入統計或 LLM 缺失判斷。`EVENTS_DATA.c_event_code = 0` 只代表事件類型未詳，若 `c_event` 有文字仍保留。地圖會排除缺座標、`addr_id=0` 與 `(0,0)` 座標。
+
+---
+
 ## 致謝 / Acknowledgements
 
 - 數據：China Biographical Database (CBDB) — Harvard / 中央研究院 / 北京大學

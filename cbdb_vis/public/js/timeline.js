@@ -46,6 +46,15 @@ window.timelineView = (() => {
       .replace(/"/g, "&quot;");
   }
 
+  function isValidYear(y) {
+    const n = Number(y);
+    return Number.isInteger(n) && n !== 0 && n !== -9999 && n !== 32767 && n <= 2100 && n >= -3000;
+  }
+
+  function fmtYear(y) {
+    return isValidYear(y) ? String(y) : "?";
+  }
+
   function showTooltip(ev, it) {
     const meta = TYPE_META[it.type] || TYPE_META.event;
     tooltipEl.innerHTML = `
@@ -89,13 +98,15 @@ window.timelineView = (() => {
     const items = payload.items || [];
 
     // Year range: prefer birth/death; otherwise expand from event years.
-    const yearsFromEvents = items.map((i) => i.year).filter((y) => y != null);
+    const yearsFromEvents = items.map((i) => i.year).filter(isValidYear);
     if (yearsFromEvents.length === 0) {
       clearAndShowMessage(`${person.name_chn || ""} 暫無年表事件`);
       return;
     }
-    let lo = Math.min(...yearsFromEvents, person.birth_year ?? Infinity);
-    let hi = Math.max(...yearsFromEvents, person.death_year ?? -Infinity);
+    const birthYear = isValidYear(person.birth_year) ? person.birth_year : null;
+    const deathYear = isValidYear(person.death_year) ? person.death_year : null;
+    let lo = Math.min(...yearsFromEvents, birthYear ?? Infinity);
+    let hi = Math.max(...yearsFromEvents, deathYear ?? -Infinity);
     if (!isFinite(lo)) lo = Math.min(...yearsFromEvents);
     if (!isFinite(hi)) hi = Math.max(...yearsFromEvents);
     if (lo === hi) { lo -= 5; hi += 5; }
@@ -218,19 +229,19 @@ window.timelineView = (() => {
     nameT.textContent = person.name_chn || `#${person.id}`;
     avatarG.appendChild(nameT);
 
-    if (person.birth_year || person.death_year) {
+    if (birthYear != null || deathYear != null) {
       const lifeT = document.createElementNS(svgNs, "text");
       lifeT.setAttribute("x", avatarCx); lifeT.setAttribute("y", nameY + 14);
       lifeT.setAttribute("text-anchor", "middle");
       lifeT.setAttribute("class", "tl-life");
-      lifeT.textContent = `${person.birth_year ?? "?"}–${person.death_year ?? "?"}`;
+      lifeT.textContent = `${fmtYear(birthYear)}–${fmtYear(deathYear)}`;
       avatarG.appendChild(lifeT);
     }
     svg.appendChild(avatarG);
 
     // ─── Ribbon body (from birth to death; falls back to event-span) ─────────
-    const ribbonLo = person.birth_year ?? Math.min(...yearsFromEvents);
-    const ribbonHi = person.death_year ?? Math.max(...yearsFromEvents);
+    const ribbonLo = birthYear ?? Math.min(...yearsFromEvents);
+    const ribbonHi = deathYear ?? Math.max(...yearsFromEvents);
     const rx = xOf(ribbonLo);
     const rxEnd = xOf(ribbonHi);
 
@@ -256,7 +267,7 @@ window.timelineView = (() => {
     svg.appendChild(ribbon);
 
     // birth marker (filled disc at left end)
-    if (person.birth_year != null) {
+    if (birthYear != null) {
       const b = document.createElementNS(svgNs, "circle");
       b.setAttribute("cx", rx);
       b.setAttribute("cy", ribbonCY);
@@ -266,13 +277,13 @@ window.timelineView = (() => {
       b.setAttribute("stroke-width", 2);
       b.setAttribute("class", "tl-marker tl-birth");
       attachHover(b, {
-        year: person.birth_year, type: "birth", label: "出生",
-        detail: `${person.name_chn || ""} 生於 ${person.birth_year} 年`,
+        year: birthYear, type: "birth", label: "出生",
+        detail: `${person.name_chn || ""} 生於 ${birthYear} 年`,
       });
       svg.appendChild(b);
     }
     // death marker (thick vertical bar)
-    if (person.death_year != null) {
+    if (deathYear != null) {
       const d = document.createElementNS(svgNs, "line");
       d.setAttribute("x1", rxEnd);
       d.setAttribute("x2", rxEnd);
@@ -283,14 +294,14 @@ window.timelineView = (() => {
       d.setAttribute("stroke-linecap", "round");
       d.setAttribute("class", "tl-marker tl-death");
       attachHover(d, {
-        year: person.death_year, type: "death", label: "卒",
-        detail: `${person.name_chn || ""} 卒於 ${person.death_year} 年`,
+        year: deathYear, type: "death", label: "卒",
+        detail: `${person.name_chn || ""} 卒於 ${deathYear} 年`,
       });
       svg.appendChild(d);
     }
 
     // ─── Events on ribbon ───────────────────────────────────────────────────
-    const events = items.filter((it) => it.type !== "birth" && it.type !== "death");
+    const events = items.filter((it) => it.type !== "birth" && it.type !== "death" && isValidYear(it.year));
 
     // Bucket events that fall on the same x-pixel, distribute them above/below
     // the ribbon in alternating fashion to avoid overlap.
@@ -334,7 +345,7 @@ window.timelineView = (() => {
     title.setAttribute("x", M.left);
     title.setAttribute("y", M.top - 16);
     title.setAttribute("class", "tl-title");
-    title.textContent = `${person.name_chn || ""}（${person.birth_year ?? "?"}–${person.death_year ?? "?"}） 年表`;
+    title.textContent = `${person.name_chn || ""}（${fmtYear(birthYear)}–${fmtYear(deathYear)}） 年表`;
     svg.appendChild(title);
 
     // Legend (mini, top-right)

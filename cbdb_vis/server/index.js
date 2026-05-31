@@ -117,11 +117,11 @@ app.get("/api/timeline/:id", (req, res) => {
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "bad id" });
   const summary = queries.getPersonSummary(id);
   if (!summary) return res.status(404).json({ error: "not found" });
-  const events = queries.eventsStmt.all(id);
-  const offices = queries.officesStmt.all(id);
-  const entries = queries.entriesStmt.all(id);
+  const events = queries.getEvents(id);
+  const offices = queries.getOffices(id);
+  const entries = queries.getEntries(id);
   const items = [];
-  if (summary.birth_year) {
+  if (summary.birth_year != null) {
     items.push({
       year: summary.birth_year,
       type: "birth",
@@ -129,7 +129,7 @@ app.get("/api/timeline/:id", (req, res) => {
       detail: `${summary.name_chn} 生於 ${summary.birth_year} 年`,
     });
   }
-  if (summary.death_year) {
+  if (summary.death_year != null) {
     items.push({
       year: summary.death_year,
       type: "death",
@@ -138,7 +138,7 @@ app.get("/api/timeline/:id", (req, res) => {
     });
   }
   for (const e of entries) {
-    if (!e.year) continue;
+    if (e.year == null) continue;
     items.push({
       year: e.year,
       type: "entry",
@@ -149,21 +149,21 @@ app.get("/api/timeline/:id", (req, res) => {
     });
   }
   for (const o of offices) {
-    const yr = o.first_year || o.last_year;
-    if (!yr || !o.office_chn) continue;
+    const yr = o.first_year ?? o.last_year;
+    if (yr == null || !o.office_chn) continue;
     items.push({
       year: yr,
       type: "office",
       label: o.office_chn,
       detail: `任 ${o.office_chn}${
-        o.first_year && o.last_year && o.first_year !== o.last_year
+        o.first_year != null && o.last_year != null && o.first_year !== o.last_year
           ? `（${o.first_year}–${o.last_year}）`
           : ""
       }`,
     });
   }
   for (const ev of events) {
-    if (!ev.year) continue;
+    if (ev.year == null) continue;
     items.push({
       year: ev.year,
       type: "event",

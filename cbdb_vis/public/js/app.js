@@ -16,6 +16,18 @@
       .replace(/"/g, "&quot;");
   }
 
+  function isValidYear(y) {
+    const n = Number(y);
+    return Number.isInteger(n) && n !== 0 && n !== -9999 && n !== 32767 && n <= 2100 && n >= -3000;
+  }
+
+  function fmtYearRange(start, end) {
+    if (isValidYear(start) || isValidYear(end)) {
+      return `${isValidYear(start) ? start : "?"}–${isValidYear(end) ? end : "?"}`;
+    }
+    return "";
+  }
+
   const els = {
     seedChips: document.getElementById("seed-chips"),
     searchInput: document.getElementById("search-input"),
@@ -83,9 +95,8 @@
             <span class="suggest-meta">${escapeHtml(r.meta)}</span>
           </li>`;
         }
-        const yr = r.birth_year || r.death_year
-          ? `${r.birth_year ?? "?"}–${r.death_year ?? "?"}`
-          : (r.index_year ? String(r.index_year) : "");
+        const yr = fmtYearRange(r.birth_year, r.death_year)
+          || (isValidYear(r.index_year) ? String(r.index_year) : "");
         const altNote = r.alt_name_chn ? ` 字號:${r.alt_name_chn}` : "";
         return `<li data-idx="${i}" role="option">
           <span class="suggest-name">${escapeHtml(r.name_chn || "—")}</span>
@@ -235,7 +246,7 @@
 
   function timelineFromLlmPerson(person) {
     const items = [];
-    if (person.birth_year != null) {
+    if (isValidYear(person.birth_year)) {
       items.push({
         year: person.birth_year,
         type: "birth",
@@ -243,7 +254,7 @@
         detail: `${person.name_chn || ""} 生於 ${person.birth_year} 年`,
       });
     }
-    if (person.death_year != null) {
+    if (isValidYear(person.death_year)) {
       items.push({
         year: person.death_year,
         type: "death",
@@ -252,7 +263,7 @@
       });
     }
     (person.entries || []).forEach((e) => {
-      if (e.year == null) return;
+      if (!isValidYear(e.year)) return;
       items.push({
         year: e.year,
         type: "entry",
@@ -262,7 +273,7 @@
     });
     (person.offices || []).forEach((o) => {
       const year = o.first_year ?? o.last_year;
-      if (year == null) return;
+      if (!isValidYear(year)) return;
       items.push({
         year,
         type: "office",
@@ -271,7 +282,7 @@
       });
     });
     (person.events || []).forEach((ev) => {
-      if (ev.year == null) return;
+      if (!isValidYear(ev.year)) return;
       items.push({
         year: ev.year,
         type: "event",

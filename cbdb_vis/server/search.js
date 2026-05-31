@@ -1,7 +1,7 @@
 "use strict";
 
 const db = require("./db");
-const queries = require("./queries");
+const norm = require("./normalize");
 
 // Search persons by Chinese name (or pinyin), with optional dynasty filter.
 const searchByNameStmt = db.prepare(`
@@ -11,9 +11,12 @@ const searchByNameStmt = db.prepare(`
          bm.c_birthyear   AS birth_year,
          bm.c_deathyear   AS death_year,
          bm.c_index_year  AS index_year,
+         bm.c_index_addr_id AS index_addr_id,
          bm.c_dy          AS dynasty_code,
          d.c_dynasty_chn  AS dynasty_chn,
-         addr.c_name_chn  AS index_addr_chn
+         addr.c_name_chn  AS index_addr_chn,
+         addr.x_coord     AS index_addr_x,
+         addr.y_coord     AS index_addr_y
   FROM BIOG_MAIN bm
   LEFT JOIN DYNASTIES d ON d.c_dy = bm.c_dy
   LEFT JOIN ADDR_CODES addr ON addr.c_addr_id = bm.c_index_addr_id
@@ -36,9 +39,12 @@ const altNameSearchStmt = db.prepare(`
          bm.c_birthyear   AS birth_year,
          bm.c_deathyear   AS death_year,
          bm.c_index_year  AS index_year,
+         bm.c_index_addr_id AS index_addr_id,
          bm.c_dy          AS dynasty_code,
          d.c_dynasty_chn  AS dynasty_chn,
          addr.c_name_chn  AS index_addr_chn,
+         addr.x_coord     AS index_addr_x,
+         addr.y_coord     AS index_addr_y,
          a.c_alt_name_chn AS alt_name_chn
   FROM ALTNAME_DATA a
   JOIN BIOG_MAIN bm ON bm.c_personid = a.c_personid
@@ -58,13 +64,14 @@ function searchPersons(query, limit = 30) {
     prefix: `${q}%`,
     limit,
   };
-  const main = searchByNameStmt.all(params);
+  const main = searchByNameStmt.all(params).map(norm.normalizeSearchResult);
 
   // Also try alt names if the primary search returned little.
   if (main.length < limit) {
     const seen = new Set(main.map((r) => r.id));
     const alt = altNameSearchStmt
       .all({ qChn: `%${q}%`, limit: limit - main.length })
+      .map(norm.normalizeSearchResult)
       .filter((r) => !seen.has(r.id));
     return [...main, ...alt];
   }

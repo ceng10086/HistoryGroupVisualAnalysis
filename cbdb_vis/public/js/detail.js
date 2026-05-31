@@ -16,12 +16,19 @@ window.detailView = (() => {
       .replace(/>/g, "&gt;")
       .replace(/"/g, "&quot;");
   }
-  function fmtYear(y) { return y == null ? "?" : (y < 0 ? `前${-y}` : `${y}`); }
+  function isValidYear(y) {
+    const n = Number(y);
+    return Number.isInteger(n) && n !== 0 && n !== -9999 && n !== 32767 && n <= 2100 && n >= -3000;
+  }
+  function fmtYear(y) {
+    if (!isValidYear(y)) return "?";
+    return y < 0 ? `前${-y}` : `${y}`;
+  }
   function fmtRange(first, last) {
-    if (first == null && last == null) return "";
-    return first != null && last != null && first !== last
+    if (!isValidYear(first) && !isValidYear(last)) return "";
+    return isValidYear(first) && isValidYear(last) && first !== last
       ? `${fmtYear(first)}–${fmtYear(last)}`
-      : fmtYear(first ?? last);
+      : fmtYear(isValidYear(first) ? first : last);
   }
   function fmtConfidence(value) {
     return ({ high: "高", medium: "中", low: "低" })[value] || "低";
@@ -61,7 +68,7 @@ window.detailView = (() => {
     if (!items || !items.length) return "";
     const sectionId = `sec-${kind}-${Math.random().toString(36).slice(2, 8)}`;
     const rows = items.map((r, idx) => {
-      const yr = r.first_year || r.last_year
+      const yr = isValidYear(r.first_year) || isValidYear(r.last_year)
         ? ` <span style="color:#8b7a5d;font-size:11px">(${fmtYear(r.first_year)}–${fmtYear(r.last_year)})</span>` : "";
       const name = r.person_chn || `#${r.person_id}`;
       const collapsed = idx >= initial ? ' data-collapsed="1"' : "";
@@ -159,8 +166,8 @@ window.detailView = (() => {
     }
     const sup = payload.supplement || {};
     const facts = [];
-    if (sup.birth_year != null) facts.push(["生年", fmtYear(sup.birth_year)]);
-    if (sup.death_year != null) facts.push(["卒年", fmtYear(sup.death_year)]);
+    if (isValidYear(sup.birth_year)) facts.push(["生年", fmtYear(sup.birth_year)]);
+    if (isValidYear(sup.death_year)) facts.push(["卒年", fmtYear(sup.death_year)]);
     if (sup.dynasty_chn) facts.push(["朝代", sup.dynasty_chn]);
     if (sup.index_addr_chn) facts.push(["籍貫", sup.index_addr_chn]);
     const factHtml = facts.length
@@ -212,10 +219,10 @@ window.detailView = (() => {
     const sectionId = `sec-office-${Math.random().toString(36).slice(2, 8)}`;
     const initial = 10;
     const rows = offices.map((o, idx) => {
-      const fy = o.first_year || "?", ly = o.last_year || "?";
+      const fy = fmtYear(o.first_year), ly = fmtYear(o.last_year);
       const collapsed = idx >= initial ? ' data-collapsed="1"' : "";
       return `<li${collapsed}>
-        <span style="color:#8b7a5d">${fy}${fy !== ly && o.last_year ? `–${ly}` : ""}：</span>
+        <span style="color:#8b7a5d">${fy}${fy !== ly && isValidYear(o.last_year) ? `–${ly}` : ""}：</span>
         ${escapeHtml(o.office_chn || "—")}
         ${o.category_1 ? `<span style="color:#8b7a5d;font-size:11px"> · ${escapeHtml(o.category_1)}</span>` : ""}
       </li>`;
@@ -241,7 +248,7 @@ window.detailView = (() => {
       return `<li${collapsed}>
         <span style="color:#8b7a5d">${escapeHtml(a.type_chn || "—")}：</span>
         ${escapeHtml(a.name_chn || "未詳")}
-        ${a.first_year || a.last_year ? ` <span style="color:#8b7a5d;font-size:11px">(${fmtYear(a.first_year)}–${fmtYear(a.last_year)})</span>` : ""}
+        ${isValidYear(a.first_year) || isValidYear(a.last_year) ? ` <span style="color:#8b7a5d;font-size:11px">(${fmtYear(a.first_year)}–${fmtYear(a.last_year)})</span>` : ""}
       </li>`;
     }).join("");
     const expandBtn = addresses.length > initial

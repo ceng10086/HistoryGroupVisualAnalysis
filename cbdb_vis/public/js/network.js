@@ -276,12 +276,16 @@ window.networkView = (() => {
   }
 
   function showTooltip(ev, d) {
+    const isValidYear = (y) => {
+      const n = Number(y);
+      return Number.isInteger(n) && n !== 0 && n !== -9999 && n !== 32767 && n <= 2100 && n >= -3000;
+    };
     const lines = [
       `<b>${d.name_chn || ""}</b> ${d.name_py ? `<span style="opacity:.7">${d.name_py}</span>` : ""}`,
     ];
     if (d.dynasty_chn) lines.push(`朝代：${d.dynasty_chn}`);
-    if (d.birth_year || d.death_year)
-      lines.push(`生卒：${d.birth_year ?? "?"}–${d.death_year ?? "?"}`);
+    if (isValidYear(d.birth_year) || isValidYear(d.death_year))
+      lines.push(`生卒：${isValidYear(d.birth_year) ? d.birth_year : "?"}–${isValidYear(d.death_year) ? d.death_year : "?"}`);
     if (d.identity) lines.push(`身份：${d.identity}`);
     if (d.degree != null) lines.push(`度數：${d.degree}`);
     tooltip.html(lines.join("<br>")).style("display", "block");

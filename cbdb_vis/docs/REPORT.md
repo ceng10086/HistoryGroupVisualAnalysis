@@ -151,7 +151,7 @@ app.js (orchestration)
 （見 §3.2 摘錄；完整 130 行）
 
 ### 5.2 人物詳情查詢彙總（`server/queries.js`）
-9 條 prepared statements 一次性返回完整人物資料，便於前端詳情面板渲染。
+9 條 prepared statements 一次性返回完整人物資料，便於前端詳情面板渲染。CBDB SQLite 中需要額外注意缺失值語義：多個年份欄位以 `0` 表示未知，`ASSOC_DATA.c_assoc_first_year` 還會以 `-1/-9999` 表示未定年，少量仕宦起年也有 `-1/-2`；多個碼表的 `0` 代表「未詳／Unknown」。本系統在後端正規化這些哨兵值，再交給詳情面板、統計圖、地圖、年表與 DeepSeek 補充層使用；但保留真實公元前年份。事件表中 `c_event_code=0` 僅表示事件類型未詳，若 `c_event` 有文字仍保留史事文本。
 
 ### 5.3 D3 力導向社會網絡（`public/js/network.js`）
 ```javascript

@@ -64,8 +64,9 @@ function buildNetwork({ seedIds, depth = 1, maxNeighborsPerNode = 80, maxNodes =
       if (visited.has(pid)) continue;
       visited.add(pid);
 
-      const assocs = queries.associationsStmt.all(pid).slice(0, maxNeighborsPerNode);
-      const kins = queries.kinshipsStmt.all(pid).slice(0, maxNeighborsPerNode);
+      const neighbors = queries.getNeighbors(pid);
+      const assocs = neighbors.associations.slice(0, maxNeighborsPerNode);
+      const kins = neighbors.kinships.slice(0, maxNeighborsPerNode);
 
       for (const a of assocs) {
         if (!a.person_id) continue;
