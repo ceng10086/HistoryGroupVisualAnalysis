@@ -7,6 +7,15 @@
     selectedPid: null,
   };
 
+  function escapeHtml(s) {
+    if (s == null) return "";
+    return String(s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
   const els = {
     seedChips: document.getElementById("seed-chips"),
     searchInput: document.getElementById("search-input"),
@@ -52,25 +61,39 @@
   let searchTimer = null;
   let activeSugIdx = -1;
 
-  function showSuggestions(rows) {
+  function showSuggestions(rows, query = "") {
     if (!rows || rows.length === 0) {
-      els.searchSuggest.classList.remove("show");
-      els.searchSuggest.innerHTML = "";
-      return;
+      if (!query) {
+        els.searchSuggest.classList.remove("show");
+        els.searchSuggest.innerHTML = "";
+        return;
+      }
+      rows = [{
+        source: "llm_prompt",
+        query,
+        name_chn: `AI 查詢「${query}」`,
+        meta: "CBDB 無結果，使用 DeepSeek 補充人物資料",
+      }];
     }
     els.searchSuggest.innerHTML = rows
       .map((r, i) => {
+        if (r.source === "llm_prompt") {
+          return `<li data-idx="${i}" role="option" class="suggest-ai">
+            <span class="suggest-name">${escapeHtml(r.name_chn)}</span>
+            <span class="suggest-meta">${escapeHtml(r.meta)}</span>
+          </li>`;
+        }
         const yr = r.birth_year || r.death_year
           ? `${r.birth_year ?? "?"}–${r.death_year ?? "?"}`
           : (r.index_year ? String(r.index_year) : "");
         const altNote = r.alt_name_chn ? ` 字號:${r.alt_name_chn}` : "";
         return `<li data-idx="${i}" role="option">
-          <span class="suggest-name">${r.name_chn || "—"}</span>
+          <span class="suggest-name">${escapeHtml(r.name_chn || "—")}</span>
           <span class="suggest-meta">
-            ${r.dynasty_chn || ""}
-            ${yr ? " · " + yr : ""}
-            ${r.index_addr_chn ? " · " + r.index_addr_chn : ""}
-            ${altNote}
+            ${escapeHtml(r.dynasty_chn || "")}
+            ${yr ? " · " + escapeHtml(yr) : ""}
+            ${r.index_addr_chn ? " · " + escapeHtml(r.index_addr_chn) : ""}
+            ${escapeHtml(altNote)}
           </span>
         </li>`;
       })
@@ -80,7 +103,11 @@
     [...els.searchSuggest.querySelectorAll("li")].forEach((li, i) => {
       li.addEventListener("mousedown", (e) => {
         e.preventDefault();
-        addSeed(rows[i]);
+        if (rows[i].source === "llm_prompt") {
+          lookupLlmPerson(rows[i].query);
+        } else {
+          addSeed(rows[i]);
+        }
         els.searchInput.value = "";
         els.searchSuggest.classList.remove("show");
       });
@@ -94,7 +121,7 @@
     searchTimer = setTimeout(async () => {
       try {
         const data = await api.search(q);
-        showSuggestions(data.results || []);
+        showSuggestions(data.results || [], q);
       } catch (e) { console.error(e); }
     }, 200);
   });
@@ -206,11 +233,95 @@
     }
   }
 
+  function timelineFromLlmPerson(person) {
+    const items = [];
+    if (person.birth_year != null) {
+      items.push({
+        year: person.birth_year,
+        type: "birth",
+        label: "出生",
+        detail: `${person.name_chn || ""} 生於 ${person.birth_year} 年`,
+      });
+    }
+    if (person.death_year != null) {
+      items.push({
+        year: person.death_year,
+        type: "death",
+        label: "卒",
+        detail: `${person.name_chn || ""} 卒於 ${person.death_year} 年`,
+      });
+    }
+    (person.entries || []).forEach((e) => {
+      if (e.year == null) return;
+      items.push({
+        year: e.year,
+        type: "entry",
+        label: e.desc_chn || "入仕",
+        detail: e.exam_field ? `${e.desc_chn || "入仕"}（${e.exam_field}）` : (e.desc_chn || "入仕"),
+      });
+    });
+    (person.offices || []).forEach((o) => {
+      const year = o.first_year ?? o.last_year;
+      if (year == null) return;
+      items.push({
+        year,
+        type: "office",
+        label: o.office_chn || "任職",
+        detail: o.office_chn || "任職",
+      });
+    });
+    (person.events || []).forEach((ev) => {
+      if (ev.year == null) return;
+      items.push({
+        year: ev.year,
+        type: "event",
+        label: ev.name_chn || "事件",
+        detail: ev.event_text || ev.name_chn || "事件",
+      });
+    });
+    items.sort((a, b) => a.year - b.year);
+    return { person, items };
+  }
+
+  async function lookupLlmPerson(query) {
+    const q = String(query || "").trim();
+    if (!q) return;
+    els.netStatus.textContent = `AI 查詢「${q}」中…`;
+    detailView.setLoading(`DeepSeek 正在補充「${q}」…`);
+    timelineView.setData({ person: { name_chn: q }, items: [] });
+    try {
+      const result = await api.llmPerson(q);
+      if (!result.found) {
+        detailView.setLoading(`未能可靠確認「${q}」的人物資料`);
+        els.netStatus.textContent = `CBDB 未命中，AI 亦未能可靠確認「${q}」`;
+        return;
+      }
+      detailView.setData(result.person);
+      timelineView.setData(timelineFromLlmPerson(result.person));
+      els.timelineHint.textContent = `AI 補充：${result.person.name_chn || q}`;
+      els.netStatus.textContent = "CBDB 未命中，已顯示 AI 補充資料；不納入網絡計算";
+    } catch (e) {
+      console.error(e);
+      detailView.setLoading("AI 查詢失敗：" + (e.message || e));
+      els.netStatus.textContent = "AI 查詢失敗：" + (e.message || e);
+    }
+  }
+
   // --- wire view callbacks ---
   networkView.onSelect((d) => selectPerson(d.id));
   detailView.onNav((pid) => {
     selectPerson(pid);
     // also lazily add to seeds? keep no-op so user has to click "render" again
+  });
+  detailView.onSupplement(async (pid) => {
+    detailView.setSupplementLoading();
+    try {
+      const supplement = await api.llmSupplement(pid);
+      detailView.setLlmSupplement(supplement);
+    } catch (e) {
+      console.error(e);
+      detailView.setSupplementError(e.message || e);
+    }
   });
 
   // --- buttons ---

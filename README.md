@@ -74,6 +74,20 @@ npm start                    # 默認 http://localhost:3000
 PORT=8080 npm start          # 自定義端口
 ```
 
+如需啟用 CBDB 缺失資料的 DeepSeek 補充層，在 `cbdb_vis/.env.local` 建立本機配置即可；密鑰不要提交到倉庫：
+
+```dotenv
+DEEPSEEK_API_KEY=你的 DeepSeek API Key
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
+
+然後正常啟動：
+
+```bash
+npm start
+```
+
 打開瀏覽器訪問 `http://localhost:3000` 即可使用。
 
 ---
@@ -87,7 +101,7 @@ PORT=8080 npm start          # 自定義端口
 | 人物身份分布 | `STATUS_DATA` + `STATUS_CODES` | ECharts 條形圖（Top 30，可滾動） |
 | 人物地理分布 | `BIOG_MAIN.c_index_addr_id` + `ADDR_CODES.x/y_coord` | Leaflet + OSM |
 | 人物年表故事 | `EVENTS_DATA` + `POSTED_TO_OFFICE_DATA` + `ENTRY_DATA` | 自繪 SVG「畫卷式」生命帶（頭像 + 生卒長帶 + 入仕/任職/事件標誌） |
-| 人物詳情 | 9 張表彙總 | 原生 DOM；長列表「展開全部」一鍵看完 1000+ 條 |
+| 人物詳情 | 9 張表彙總 + 可選 DeepSeek 補充 | 原生 DOM；長列表「展開全部」一鍵看完 1000+ 條；CBDB 缺欄位或查無人物時可按需顯示 AI 補充資料 |
 
 更多細節（API 列表、創新點、性能優化）請見 [`cbdb_vis/README.md`](cbdb_vis/README.md) 與 [`cbdb_vis/docs/REPORT.md`](cbdb_vis/docs/REPORT.md)。
 

@@ -33,6 +33,7 @@ cbdb_vis/
 |------|------|
 | Node.js | ≥ 18 |
 | 系統工具 | sqlite3, p7zip-full（解壓 CBDB） |
+| 可選 LLM | DeepSeek OpenAI 相容 API（用於 CBDB 缺失欄位補充） |
 
 CBDB SQLite 數據文件路徑（默認）：
 
@@ -42,11 +43,21 @@ CBDB SQLite 數據文件路徑（默認）：
 
 如需切換到其他發行版本，修改 `server/db.js` 中的 `DB_PATH`。
 
+DeepSeek 補充層為可選功能。後端啟動時會自動讀取 `cbdb_vis/.env.local`（或 `.env`），密鑰不會傳到前端，也不要提交到倉庫：
+
+```dotenv
+DEEPSEEK_API_KEY=你的 DeepSeek API Key
+DEEPSEEK_MODEL=deepseek-v4-pro
+DEEPSEEK_BASE_URL=https://api.deepseek.com
+```
+
+未配置 `DEEPSEEK_API_KEY` 時，CBDB 主功能照常可用，只是不顯示 AI 補充結果。
+
 ## 啟動
 
 ```bash
 cd cbdb_vis
-npm install                # 已包含 better-sqlite3 / express / cors / compression
+npm install                # 已包含 better-sqlite3 / express / cors / compression / openai
 npm start                  # 默認監聽 http://localhost:3000
 PORT=8080 npm start        # 也可指定端口
 ```
@@ -62,7 +73,7 @@ PORT=8080 npm start        # 也可指定端口
 | 人物身份分布 | `STATUS_DATA` + `STATUS_CODES` | ECharts 水平條形圖；返回 Top 30 身份，顯示窗口 12 條，垂直滾動瀏覽其餘 |
 | 人物地理分布 | `BIOG_MAIN.c_index_addr_id` + `ADDR_CODES.x/y_coord` | Leaflet + OpenStreetMap，按籍貫聚合 |
 | 人物年表故事 | `EVENTS_DATA` + `POSTED_TO_OFFICE_DATA` + `ENTRY_DATA` | 自繪 SVG 「畫卷式」生命帶（life-ribbon）：左側頭像+姓名+生卒；中央米黃色長帶為生命周期，金色點標記出生、深色豎條標記卒；帶上鋪入仕（藍菱形）、任職（綠色 tick）、事件（紅圓點）三類標誌；下方為十年刻度 |
-| 人物詳情 | `BIOG_MAIN` 等 9 張表彙總 | 原生 DOM；地址 / 仕宦 / 交往 / 親屬列表預設摺疊（8 / 10 / 12 / 12 條），點「展開全部」可看完所有條目（蘇軾的社會交往可達 1000+ 條） |
+| 人物詳情 | `BIOG_MAIN` 等 9 張表彙總 + 可選 DeepSeek 補充 | 原生 DOM；地址 / 仕宦 / 交往 / 親屬列表預設摺疊（8 / 10 / 12 / 12 條），點「展開全部」可看完所有條目；CBDB 缺失欄位可按需用 AI 生成 JSON 補充，並明確標示來源 |
 
 ## API 列表
 
@@ -71,6 +82,9 @@ PORT=8080 npm start        # 也可指定端口
 | GET | `/api/health` | 健康檢查 | — |
 | GET | `/api/search?q=…&limit=30` | 姓名／字號搜索（模糊） | `limit ≤ 100` |
 | GET | `/api/person/:id` | 人物完整詳情（彙總 9 張表） | — |
+| GET | `/api/person/:id/llm-supplement` | 對既有 CBDB 人物缺失欄位做 DeepSeek JSON 補充 | 需 `DEEPSEEK_API_KEY` |
+| GET | `/api/llm/person?q=…` | CBDB 查無人物時，用 DeepSeek 產生可讀人物資料 | 需 `DEEPSEEK_API_KEY` |
+| GET | `/api/llm/status` | 檢視 LLM 補充層配置狀態（不返回密鑰） | — |
 | GET | `/api/network?seeds=1,2,3&depth=1&maxNodes=150&maxPerNode=80` | 多跳社會網絡 | `maxNodes ≤ 1500`，`maxPerNode ≤ 300` |
 | GET | `/api/identity-distribution?ids=…` | 群體身份統計（Top 80） | — |
 | GET | `/api/geo?ids=…` | 群體籍貫聚類 | — |
@@ -86,8 +100,9 @@ PORT=8080 npm start        # 也可指定端口
 4. **圖內搜索高亮**：標題欄右側「圖內搜索」即時模糊匹配當前圖中節點，命中節點高亮邊框，其鄰居保留可見，其餘節點變淡。
 5. **詳情列表「展開全部」**：地址（前 8）／仕宦（前 10）／交往（前 12）／親屬（前 12）默認摺疊，一鍵展開全部 N 條，再點可收起。蘇軾的 1033 條社會交往不再被截斷。
 6. **字號搜索**：人文學者常按「字／號」回憶人物，後端在主名搜不到時回退查 `ALTNAME_DATA`，前端在建議下拉直接顯示「字號:東坡居士」等元數據。
-7. **混合身份配色**：節點顏色按 `STATUS_DATA` 的「主要身份」（畫家／詩人／官員等）映射，使群體中職業構成一目了然。
-8. **預設群體**：圍繞「吳門四家」「唐宋八大家」等經典歷史群體，便於老師演示與用戶快速上手。
+7. **DeepSeek 補充層**：對 CBDB 缺失欄位或查無人物提供按需 JSON 補充；後端使用 OpenAI SDK 相容介面、`response_format: {"type":"json_object"}` 與關閉思考模式，前端把結果標為 AI 補充，不混入 CBDB 原始資料。
+8. **混合身份配色**：節點顏色按 `STATUS_DATA` 的「主要身份」（畫家／詩人／官員等）映射，使群體中職業構成一目了然。
+9. **預設群體**：圍繞「吳門四家」「唐宋八大家」等經典歷史群體，便於老師演示與用戶快速上手。
 
 ## 截圖
 
@@ -100,6 +115,7 @@ PORT=8080 npm start        # 也可指定端口
 
 - CBDB 釋出 2025-05 以後 `c_index_year` 等字段不再持續維護，部分人物 `index_year` 為空。
 - 部分歷史地名 `x_coord/y_coord` 缺失，這些人物不會出現在地圖上但仍計入身份統計。
+- DeepSeek 補充結果來自模型推斷，只作研究提示；介面會標示「AI 補充」，不作為 CBDB 原始資料或網絡統計依據。
 
 ## License
 

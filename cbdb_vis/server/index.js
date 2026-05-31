@@ -9,6 +9,7 @@ const queries = require("./queries");
 const search = require("./search");
 const network = require("./network");
 const agg = require("./aggregations");
+const llm = require("./llm");
 
 const app = express();
 app.use(compression());
@@ -17,6 +18,7 @@ app.use(express.json({ limit: "1mb" }));
 
 const PUBLIC_DIR = path.resolve(__dirname, "../public");
 app.use(express.static(PUBLIC_DIR));
+app.get("/favicon.ico", (_req, res) => res.status(204).end());
 
 function parseIntList(value) {
   if (!value) return [];
@@ -25,6 +27,10 @@ function parseIntList(value) {
     .split(",")
     .map((v) => Number(v.trim()))
     .filter((v) => Number.isInteger(v) && v > 0);
+}
+
+function asyncRoute(fn) {
+  return (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 }
 
 app.get("/api/health", (_req, res) => res.json({ ok: true, ts: Date.now() }));
@@ -40,7 +46,45 @@ app.get("/api/person/:id", (req, res) => {
   if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "bad id" });
   const person = queries.getPersonDetail(id);
   if (!person) return res.status(404).json({ error: "not found" });
+  person.missing_fields = llm.getMissingFields(person);
+  person.llm_available = llm.isConfigured();
   res.json(person);
+});
+
+app.get("/api/person/:id/llm-supplement", asyncRoute(async (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id) || id <= 0) return res.status(400).json({ error: "bad id" });
+  const person = queries.getPersonDetail(id);
+  if (!person) return res.status(404).json({ error: "not found" });
+  const missing = llm.getMissingFields(person);
+  if (!missing.length) {
+    return res.json({
+      source: "llm",
+      skipped: true,
+      based_on_cbdb_id: id,
+      missing_fields: [],
+      message: "CBDB 已有主要欄位，無需補充",
+    });
+  }
+  const supplement = await llm.supplementPerson(person, missing);
+  res.json(supplement);
+}));
+
+app.get("/api/llm/person", asyncRoute(async (req, res) => {
+  const q = String(req.query.q || "").trim();
+  if (!q) return res.status(400).json({ error: "query required" });
+  const result = await llm.lookupPerson(q);
+  res.json(result);
+}));
+
+app.get("/api/llm/status", (_req, res) => {
+  const cfg = llm.getConfig();
+  res.json({
+    configured: llm.isConfigured(),
+    provider: "DeepSeek",
+    model: cfg.model,
+    base_url: cfg.baseURL,
+  });
 });
 
 app.get("/api/network", (req, res) => {
@@ -165,7 +209,7 @@ app.get("/api/presets", (_req, res) => res.json({ items: PRESETS }));
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ error: err.message || "server error" });
+  res.status(err.status || 500).json({ error: err.message || "server error" });
 });
 
 const PORT = Number(process.env.PORT) || 3000;

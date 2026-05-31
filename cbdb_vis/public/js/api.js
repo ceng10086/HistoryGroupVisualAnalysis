@@ -19,6 +19,14 @@ window.api = (() => {
   return {
     search: (q) => fetch(`/api/search?q=${encodeURIComponent(q)}`).then((r) => r.json()),
     person: (id) => memoFetch(`/api/person/${id}`),
+    llmSupplement: (id) => fetch(`/api/person/${id}/llm-supplement`).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} on /api/person/${id}/llm-supplement`);
+      return r.json();
+    }),
+    llmPerson: (q) => fetch(`/api/llm/person?q=${encodeURIComponent(q)}`).then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status} on /api/llm/person`);
+      return r.json();
+    }),
     network: (seeds, depth = 1, maxNodes = 120) =>
       fetch(`/api/network?seeds=${seeds.join(",")}&depth=${depth}&maxNodes=${maxNodes}`).then((r) => r.json()),
     identity: (ids) =>
