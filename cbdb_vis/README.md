@@ -108,8 +108,13 @@ PORT=8080 npm start        # 也可指定端口
 
 - `docs/cbdb-after-preset.png` — 明代吳門四家視圖
 - `docs/cbdb-tangsong-sushi.png` — 唐宋八大家視圖（蘇軾被選中）
-- `docs/cbdb-large-graph.png` — 唐宋八大家在 500 節點上限下的大圖視圖（267 人物 / 315 關係）
+- `docs/cbdb-large-graph.png` — 唐宋八大家在 500 節點上限下的大圖視圖（500 人物 / 2072 關係）
 - `docs/cbdb-timeline-ribbon.png` — 蘇軾「生命帶」年表（1036–1101，36 任職 + 2 入仕）
+- `docs/cbdb-identity-chart.png` — 人物身份分布 ECharts 條形圖
+- `docs/cbdb-geo-map.png` — 人物地理分布 Leaflet 地圖
+- `docs/cbdb-search-suggest.png` — 姓名／字號搜索建議下拉
+- `docs/cbdb-detail-panel.png` — 人物詳情面板（展開全部列表）
+- `docs/cbdb-ai-supplement.png` — DeepSeek AI 補充缺失欄位結果
 
 ## 數據限制
 

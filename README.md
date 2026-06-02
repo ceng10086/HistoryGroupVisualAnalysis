@@ -13,6 +13,16 @@
 
 ![蘇軾生命帶年表](cbdb_vis/docs/cbdb-timeline-ribbon.png)
 
+![人物身份分布](cbdb_vis/docs/cbdb-identity-chart.png)
+
+![人物地理分布](cbdb_vis/docs/cbdb-geo-map.png)
+
+![搜索建議](cbdb_vis/docs/cbdb-search-suggest.png)
+
+![人物詳情面板](cbdb_vis/docs/cbdb-detail-panel.png)
+
+![AI 補充](cbdb_vis/docs/cbdb-ai-supplement.png)
+
 ---
 
 ## 目錄結構
@@ -31,7 +41,12 @@ HistoryGroupVisualAnalysis/
     │   ├── cbdb-after-preset.png          ← 吳門四家截圖
     │   ├── cbdb-tangsong-sushi.png        ← 唐宋八大家截圖
     │   ├── cbdb-large-graph.png           ← 500 節點上限大圖截圖
-    │   └── cbdb-timeline-ribbon.png       ← 蘇軾「生命帶」年表截圖
+    │   ├── cbdb-timeline-ribbon.png       ← 蘇軾「生命帶」年表截圖
+    │   ├── cbdb-identity-chart.png        ← 人物身份分布條形圖
+    │   ├── cbdb-geo-map.png               ← 人物地理分布地圖
+    │   ├── cbdb-search-suggest.png        ← 搜索建議下拉
+    │   ├── cbdb-detail-panel.png          ← 人物詳情面板
+    │   └── cbdb-ai-supplement.png         ← DeepSeek AI 補充結果
     ├── server/                            ← Express + better-sqlite3 後端
     │   ├── index.js
     │   ├── db.js
