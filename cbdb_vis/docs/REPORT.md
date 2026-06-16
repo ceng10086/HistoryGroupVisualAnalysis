@@ -118,7 +118,7 @@ app.js (orchestration)
 ### 3.4 性能與優化
 * SQL 預編譯（once-prepared）+ `cache_size=-64000`：常用查詢 < 5ms。
 * 前端 `api.memoFetch`：對人物詳情、預設、時間軸結果 60 秒緩存。
-* D3 力導向**節點數自適應**：≤250 節點 charge=-120 / collideR=node.r+6 / alphaDecay=0.025；>500 節點 charge=-55 / collideR=node.r+3 / alphaDecay=0.04。500 節點圖在 ~1.8s 內收斂。
+* D3 力導向**節點數自適應**：charge 按 N≤250（-120）/ ≤500（-90）/ >500（-55）三檔縮放；collideRadius 在 N>300 時從 d.r+6 降至 d.r+3；alphaDecay 在 N>400 時從 0.025 升至 0.04。500 節點圖在 ~1.8s 內收斂。
 * 標籤渲染分檔過濾：避免大圖中 N 個 `<text>` 節點相互重疊。
 * 詳情列表懶展開：CSS `[data-collapsed="1"]{display:none}` 配合一次性 DOM 渲染、JS 移除屬性即可瞬時展開所有條目，無需重新 fetch。
 * 響應式佈局：CSS Grid `grid-template-areas` + `@media (max-width:1180px)` 自動切單列。
@@ -153,32 +153,37 @@ app.js (orchestration)
 
 ## 5. 核心模塊源代碼
 
-完整源碼位於 `cbdb_vis/`，總行數 ~1500（Server 約 600，Client 約 900）。下面摘錄三段最具代表性者。
+完整源碼位於 `cbdb_vis/`，總行數約 4,000（Server ~1,600，Client ~2,400）。下面摘錄三段最具代表性者。
 
 ### 5.1 多跳社會網絡（`server/network.js`）
-（見 §3.2 摘錄；完整 130 行）
+（見 §3.2 摘錄；完整 126 行）
 
 ### 5.2 人物詳情查詢彙總（`server/queries.js`）
-9 條 prepared statements 一次性返回完整人物資料，便於前端詳情面板渲染。CBDB SQLite 中需要額外注意缺失值語義：多個年份欄位以 `0` 表示未知，`ASSOC_DATA.c_assoc_first_year` 還會以 `-1/-9999` 表示未定年，少量仕宦起年也有 `-1/-2`；多個碼表的 `0` 代表「未詳／Unknown」。本系統在後端正規化這些哨兵值，再交給詳情面板、統計圖、地圖、年表與 DeepSeek 補充層使用；但保留真實公元前年份。事件表中 `c_event_code=0` 僅表示事件類型未詳，若 `c_event` 有文字仍保留史事文本。
+9 條 prepared statements 一次性返回完整人物資料，便於前端詳情面板渲染。CBDB SQLite 中需要額外注意缺失值語義：多個年份欄位以 `0` 表示未知，`ASSOC_DATA.c_assoc_first_year` 還會以 `-1/-9999` 表示未定年，少量仕宦起年也有 `-1/-2`；多個碼表的 `0` 代表「未詳／Unknown」。本系統在後端正規化這些哨兵值（見 `server/normalize.js`），再交給詳情面板、統計圖、地圖、年表與 DeepSeek 補充層使用；但保留真實公元前年份。事件表中 `c_event_code=0` 僅表示事件類型未詳，若 `c_event` 有文字仍保留史事文本。
 
 ### 5.3 D3 力導向社會網絡（`public/js/network.js`）
 ```javascript
+const N = nodes.length;
+const charge = N > 500 ? -55 : N > 250 ? -90 : -120;
+const linkDist = d => {
+  const base = d.kind === "kin" ? 50 : 75;
+  return base + Math.min(40, N / 18);
+};
+const collideR = d => d.r + (N > 300 ? 3 : 6);
+
 simulation = d3.forceSimulation(nodes)
   .force("link", d3.forceLink(edges).id(d => d.id)
-    .distance(d => d.kind === "kin" ? 60 : 90).strength(0.5))
-  .force("charge", d3.forceManyBody().strength(d => d.isSeed ? -380 : -120))
-  .force("center", d3.forceCenter(width/2, height/2))
-  .force("collide", d3.forceCollide().radius(d => d.r + 6));
+    .distance(linkDist).strength(0.5))
+  .force("charge", d3.forceManyBody()
+    .strength(d => d.isSeed ? -380 : charge))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collide", d3.forceCollide().radius(collideR))
+  .alpha(1)
+  .alphaDecay(N > 400 ? 0.04 : 0.025);
 ```
 
 ---
 
 ## 6. 參考文獻
 
-1. 包弼德, 陳松, 王宏甦. 《中國歷代人物傳記資料庫》[DB/OL]. 哈佛大學費正清中國研究中心、中研院、北京大學. https://projects.iq.harvard.edu/chinesecbdb/home
-2. CBDB SQLite 倉庫. https://github.com/cbdb-project/cbdb_sqlite
-3. Bostock M., Ogievetsky V., Heer J. *D3: Data-Driven Documents*. IEEE TVCG, 2011.
-4. Apache ECharts. https://echarts.apache.org/
-5. Leaflet — JavaScript library for interactive maps. https://leafletjs.com/
-6. Munzner, T. *Visualization Analysis and Design*. CRC Press, 2014. （多視圖聯動 / VIS 設計準則）
-7. 朱本軍, 包弼德. 「CBDB 在中國史研究中的應用」. 《數字人文》第 X 輯.
+1. CBDB SQLite 倉庫. https://github.com/cbdb-project/cbdb_sqlite

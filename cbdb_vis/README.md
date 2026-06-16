@@ -25,7 +25,7 @@ cbdb_vis/
         ├── network.js     # D3 力導向圖
         ├── identity.js    # ECharts 條形圖
         ├── geo.js         # Leaflet 地圖
-        ├── timeline.js    # ECharts 散點時間軸
+        ├── timeline.js    # 自繪 SVG 畫卷式生命帶
         ├── detail.js      # 人物詳情面板
         └── app.js         # 頂層編排
 ```
@@ -35,7 +35,7 @@ cbdb_vis/
 | 工具 | 版本 |
 |------|------|
 | Node.js | ≥ 18 |
-| 系統工具 | sqlite3, p7zip-full（解壓 CBDB） |
+| 系統工具 | sqlite3, unzip（解壓 CBDB 的 zip 歸檔） |
 | 可選 LLM | DeepSeek OpenAI 相容 API（用於 CBDB 缺失欄位補充） |
 
 CBDB SQLite 數據文件路徑（默認）：

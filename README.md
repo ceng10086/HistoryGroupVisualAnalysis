@@ -51,6 +51,7 @@ HistoryGroupVisualAnalysis/
     │   ├── index.js
     │   ├── db.js
     │   ├── queries.js
+    │   ├── normalize.js
     │   ├── search.js
     │   ├── network.js
     │   ├── aggregations.js
@@ -71,17 +72,24 @@ HistoryGroupVisualAnalysis/
 
 ### 1. 準備數據（CBDB SQLite）
 
+> [!IMPORTANT]
+> 本系統後端固定讀取 `cbdb_20260328.sqlite3`；請下載此固定版本，**不要使用 HuggingFace 上的 `latest.zip`**（該文件會隨上游發行漂移，版本不匹配將導致啟動失敗）。
+
 ```bash
 # 在倉庫根目錄下：
 git clone https://github.com/cbdb-project/cbdb_sqlite.git
 cd cbdb_sqlite
-wget -O latest.zip "https://huggingface.co/datasets/cbdb/cbdb-sqlite/resolve/main/latest.zip"
 sudo apt install -y sqlite3 unzip          # Debian / Ubuntu
-unzip latest.zip
-# 解壓後得到 cbdb_YYYYMMDD.sqlite3 (~580MB)
+# 下載固定版本的數據庫（約 131MB 壓縮包，解壓後 ~580MB）
+wget -O cbdb_20260328.zip "https://huggingface.co/datasets/cbdb/cbdb-sqlite/resolve/main/history/cbdb_202603/cbdb_20260328.zip"
+wget -O cbdb_20260328.metadata.json "https://huggingface.co/datasets/cbdb/cbdb-sqlite/resolve/main/metadata/2026-03/2026-03-28.json"
+unzip -o cbdb_20260328.zip
+# 解壓後得到 cbdb_20260328.sqlite3 (~580MB) 和 cbdb_20260328.json
 ```
 
-如果發行版本日期變化，請對照修改 `cbdb_vis/server/db.js` 中的 `DB_PATH`（默認 `../cbdb_sqlite/cbdb_20260328.sqlite3`）。
+詳細步驟見 [`setup_commands_log.md`](setup_commands_log.md)。
+
+如需切換其他發行版本，請對照修改 `cbdb_vis/server/db.js` 中的 `DB_PATH`。
 
 ### 2. 安裝依賴並啟動
 
