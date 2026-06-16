@@ -53,7 +53,10 @@ HistoryGroupVisualAnalysis/
     │   ├── queries.js
     │   ├── search.js
     │   ├── network.js
-    │   └── aggregations.js
+    │   ├── aggregations.js
+    │   ├── llm.js
+    ├── scripts/                           ← 輔助腳本
+    │   └── eval-llm-accuracy.js           ← LLM 補充準確度基準測試
     └── public/                            ← D3 + ECharts + Leaflet 前端
         ├── index.html
         ├── css/app.css

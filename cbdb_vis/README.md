@@ -13,7 +13,10 @@ cbdb_vis/
 │   ├── queries.js         # 預編譯人物詳情查詢
 │   ├── search.js          # 姓名／字號搜索
 │   ├── network.js         # 多跳社會網絡建構
-│   └── aggregations.js    # 身份／地理聚合
+│   ├── aggregations.js    # 身份／地理聚合
+│   └── llm.js             # DeepSeek 補充層
+├── scripts/               # 輔助腳本
+│   └── eval-llm-accuracy.js  # LLM 補充準確度基準測試
 └── public/                # 前端靜態資源
     ├── index.html
     ├── css/app.css
@@ -124,6 +127,24 @@ PORT=8080 npm start        # 也可指定端口
 - `EVENTS_DATA.c_event_code = 0` 只代表事件類型未詳；若 `c_event` 有文字，本系統仍保留事件文字，避免丟失「熙寧變法」等可讀史事。
 - 部分歷史地名 `x_coord/y_coord` 缺失；另有若干地名座標為 `(0, 0)`，本系統視為不可定位，不會放入地圖聚類。
 - DeepSeek 補充結果來自模型推斷，只作研究提示；介面會標示「AI 補充」，不作為 CBDB 原始資料或網絡統計依據。
+
+## LLM 補充準確度評估
+
+`scripts/eval-llm-accuracy.js` 提供一個獨立的基準測試工具，用於量化 LLM 對 CBDB 缺失欄位的補充準確度：
+
+- 從 CBDB 選取資料完整的歷史人物，**故意隱藏**某個欄位後交給 LLM 推斷
+- 將 LLM 輸出與 CBDB 真實值對比，分類為 **正確 / 錯誤 / LLM 承認未知 / 異常**
+- 支援指定欄位、人數、人物 ID、隨機種子，可完全重現測試結果
+
+```bash
+cd cbdb_vis
+node scripts/eval-llm-accuracy.js                          # 默認 10 人 × 4 欄位
+node scripts/eval-llm-accuracy.js --count=30 --seed=42     # 大規模可重現測試
+node scripts/eval-llm-accuracy.js --targets=3767,1384,1762 # 指定人物
+node scripts/eval-llm-accuracy.js --output=./report.json   # 輸出 JSON 報告
+```
+
+deepseek-v4-pro 實測 10 人 × 4 欄位（40 次調用）：**朝代 100% 正確、生卒年 0 次編造（冷門人物全部誠實返回 null）、籍貫 1 次歧義（歐陽修：CBDB 記「新鄭」、LLM 推「吉州廬陵」——分別對應遷居地與出生地）**。
 
 ## License
 

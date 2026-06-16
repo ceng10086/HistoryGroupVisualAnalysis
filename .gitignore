@@ -37,6 +37,10 @@ coverage/
 *.pem
 *.key
 
+# ── LLM 評估輸出 ──
+eval-results*.json
+eval-sample*.json
+
 # ── 平台特定 ──
 *.tmp
 *.bak
